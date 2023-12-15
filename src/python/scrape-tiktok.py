@@ -3,7 +3,6 @@ import requests
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import json
-import requests
 
 def main(user, link_ids) -> None:
     print("STEP 1: Get urls to download")
@@ -18,7 +17,7 @@ def main(user, link_ids) -> None:
         downloadVideo(url, index)
         time.sleep(10)
 
-def downloadVideo(link, id):
+def downloadVideo(link, id, movie_path):
     print(f"Downloading video {id} from: {link}")
     
     cookies = {
@@ -70,7 +69,7 @@ def downloadVideo(link, id):
     print("STEP 5: Saving the video :)")
     mp4File = urlopen(downloadLink)
     # Feel free to change the download directory
-    with open(f"videos/{id}-{videoTitle}.mp4", "wb") as output:
+    with open(f"{movie_path}{id}-{videoTitle}.mp4", "wb") as output:
         while True:
             data = mp4File.read(4096)
             if data:
@@ -94,33 +93,37 @@ def get_vid_properties(file_path) -> list:
 
     return link_ids, stats
 
+def mp4_to_mov(movie_path) -> None:
+    import os
+    import subprocess
+
+    
+
+    for fn in os.listdir(movie_path):
+        if os.path.isfile(movie_path + fn):
+            if fn.endswith(".mp4"):
+                print("mp4 file found: " + fn)
+                p = subprocess.run(
+                    ["ffmpeg",
+                    "-i", movie_path + fn,
+                    "-n",
+                    "-acodec", "copy",
+                    "-vcodec", "copy",
+                    "-f", "mov", movie_path + fn[:-4] + ".mov"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
+                if p.returncode == 0:
+                    os.remove(movie_path + fn)
+                    print("Converted " + fn)
+                else:
+                    print("Skipped   " + fn)
+
 if __name__ == "__main__":
-    # URL of the webpage you want to read (this should be an html webpage obtained from right click > inspect element > network > Fetch/XHR > find 'item_list/?WebId' thing)
-    # url = 'https://www.tiktok.com/api/post/item_list/?WebIdLastTime=1689543710&aid=1988&app_language=en&app_name=tiktok_web&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Win32&browser_version=5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F120.0.0.0%20Safari%2F537.36&channel=tiktok_web&cookie_enabled=true&count=35&coverFormat=2&cursor=0&device_id=7256534963528451626&device_platform=web_pc&focus_state=true&from_page=user&history_len=4&is_fullscreen=false&is_page_visible=true&language=en&os=windows&priority_region=US&referer=&region=US&screen_height=1080&screen_width=1920&secUid=MS4wLjABAAAA-Dx2ekKupqNLDLOBDD2v8wLOKhCzMwZwtn8orYP07J38ufn76Uo0rD4NtEQNKNOp&tz_name=America%2FPhoenix&webcast_language=en&msToken=Mz0PSykhT8hWz6CmS_oHgOrXBr2h0dorOYXqBnvywaJ1wCXBU03qh6cGDvSPdGvgTmlxTLVSDEknGubK0aayd79EPxaJgucFm2XBOtG7vbj0raLAmoiAc1YFIngIeHmkaGN0X6AEtasPFw==&X-Bogus=DFSzswVO/RxANy5ntuQ/2t9WcBnh&_signature=_02B4Z6wo00001-yryDgAAIDD7KvIOMGPEUfsq8yAAJ5m24' #'https://www.tiktok.com/api/post/item_list/?WebIdLastTime=1689543710&aid=1988&app_language=en&app_name=tiktok_web&browser_language=en-US&browser_name=Mozilla&browser_online=true&browser_platform=Win32&browser_version=5.0%20%28Windows%20NT%2010.0%3B%20Win64%3B%20x64%29%20AppleWebKit%2F537.36%20%28KHTML%2C%20like%20Gecko%29%20Chrome%2F120.0.0.0%20Safari%2F537.36&channel=tiktok_web&cookie_enabled=true&count=35&coverFormat=2&cursor=0&device_id=7256534963528451626&device_platform=web_pc&focus_state=true&from_page=user&history_len=3&is_fullscreen=false&is_page_visible=true&language=en&os=windows&priority_region=US&referer=&region=US&screen_height=1080&screen_width=1920&secUid=MS4wLjABAAAA-Dx2ekKupqNLDLOBDD2v8wLOKhCzMwZwtn8orYP07J38ufn76Uo0rD4NtEQNKNOp&tz_name=America%2FPhoenix&webcast_language=en&msToken=XtuC-R_wGAlpVamkzYkPI05D8dS8N8piuFQBwLCGMx8XWxNfrmeCS8dA1wVxYc_tuWuGby-2KbfPfnQZfOO1JS8xUx01ZaXPW4mL8XgNxp4Pb9VDCp6HuWAJKZOjnSScNtgP&X-Bogus=DFSzswVOG/UANy5ntuBJXt9WcBJt&_signature=_02B4Z6wo00001yp6F-wAAIDDKnoX7Bsw3H8qehNAAK.ze3'
-    # user = "qinhan111"
-    # file_path = 'data.txt'
+    user = "qinhan111"
+    file_path = '/home/jake-rr1/github/transform-content/src/python/data.txt'
+    mov_path = '/home/jake-rr1/github/transform-content/src/python/videos/'
 
-    # link_ids, stats = get_vid_properties(file_path)
+    link_ids, stats = get_vid_properties(file_path)
 
-    # main(user, link_ids)
-
-    from haralyzer import HarParser
-
-    # Load the HAR file as a dictionary
-    with open('C:\\Users\\jacob\\Desktop\\github\\jake-rr1\\github\\transform-content\\src\\python\\qinhan111.har', 'r') as har_file:
-        har_parser = HarParser(json.loads(har_file.read()))
-
-    # # Create a HarParser instance with the dictionary representation
-    # har_parser = HarParser(har_data)
-
-    # Extract data from XHR entries
-    item_lists = []
-
-    for entry in har_parser.har_data['entries']:
-        if 'item_list' in entry['request']['url']:
-            # Adjust the condition based on the actual pattern of your XHR entries
-            response_text = entry['response']['content']['text']
-            item_lists.append(response_text)
-
-    # Now, item_lists contains the data from all XHR entries with URLs containing 'item_list'
-    print(item_lists)
+    main(user, link_ids, mov_path)
+    
+    mp4_to_mov(mov_path)
+        
