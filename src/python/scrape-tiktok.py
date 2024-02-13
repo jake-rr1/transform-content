@@ -3,18 +3,19 @@ import requests
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import json
+import os
 
-def main(user, link_ids) -> None:
+def main(user, link_ids, mov_path) -> None:
     print("STEP 1: Get urls to download")
 
-    urlsToDownload = ["https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
+    urlsToDownload = [f"https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
 
     print(urlsToDownload)
 
-    print(f"STEP 3: Time to download {len(urlsToDownload)} videos")
+    print(f"STEP 3: T   ime to download {len(urlsToDownload)} videos")
     for index, url in enumerate(urlsToDownload):
         print(f"Downloading video: {index}")
-        downloadVideo(url, index)
+        downloadVideo(url, index, mov_path)
         time.sleep(10)
 
 def downloadVideo(link, id, movie_path):
@@ -97,19 +98,19 @@ def mp4_to_mov(movie_path) -> None:
     import os
     import subprocess
 
-    
-
     for fn in os.listdir(movie_path):
+        print("Converting " + movie_path + fn + " to .mov file")
+        print(fn[:-4])
         if os.path.isfile(movie_path + fn):
             if fn.endswith(".mp4"):
-                print("mp4 file found: " + fn)
-                p = subprocess.run(
-                    ["ffmpeg",
+                cmd = ["ffmpeg",
                     "-i", movie_path + fn,
                     "-n",
                     "-acodec", "copy",
                     "-vcodec", "copy",
-                    "-f", "mov", movie_path + fn[:-4] + ".mov"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
+                    "-f", "mov", movie_path + fn[:-4] + ".mov"]
+                print("mp4 file found: "  + fn)
+                p = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
                 if p.returncode == 0:
                     os.remove(movie_path + fn)
                     print("Converted " + fn)
@@ -118,8 +119,9 @@ def mp4_to_mov(movie_path) -> None:
 
 if __name__ == "__main__":
     user = "qinhan111"
-    file_path = '/home/jake-rr1/github/transform-content/src/python/data.txt'
-    mov_path = '/home/jake-rr1/github/transform-content/src/python/videos/'
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    file_path = current_dir + '\\data.txt'
+    mov_path = current_dir + '\\videos\\'
 
     link_ids, stats = get_vid_properties(file_path)
 
