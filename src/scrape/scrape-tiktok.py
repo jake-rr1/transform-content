@@ -4,17 +4,21 @@ from urllib.request import urlopen
 from bs4 import BeautifulSoup
 import json
 import os
+from seleniumwire import webdriver  # Import from seleniumwire
+from selenium.webdriver.chrome.service import Service
+import httpx
+from glob import glob
 
 def main(user, link_ids, mov_path) -> None:
-    print("STEP 1: Get urls to download")
-
     urlsToDownload = [f"https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
+    
+    if len(urlsToDownload) != len(set(urlsToDownload)):
+        print("========== OH NO ===========")
+    else:
+        print("================ OK ================")
 
-    print(urlsToDownload)
-
-    print(f"STEP 3: T   ime to download {len(urlsToDownload)} videos")
+    print(f"STEP 3: Time to download {len(urlsToDownload)} videos")
     for index, url in enumerate(urlsToDownload):
-        print(f"Downloading video: {index}")
         downloadVideo(url, index, mov_path)
         time.sleep(10)
 
@@ -33,7 +37,7 @@ def downloadVideo(link, id, movie_path):
         'accept': '*/*',
         'accept-language': 'en-US,en;q=0.9',
         'content-type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        # 'cookie': '_ga=GA1.1.1568192361.1702255294; __gads=ID=0a294eb2b7e4166e:T=1702255293:RT=1702255293:S=ALNI_MbvX6xCO4qF9gH_6tNLzt4lj8V7Rw; __gpi=UID=00000d16d0568f6c:T=1702255293:RT=1702255293:S=ALNI_Ma1NpgmPZQNw_-zR7ZYSROoXQZi6w; _ga_ZSF3D6YSLC=GS1.1.1702255293.1.1.1702255374.0.0.0',
+        'cookie': '_ga=GA1.1.1568192361.1702255294; __gads=ID=0a294eb2b7e4166e:T=1702255293:RT=1702255293:S=ALNI_MbvX6xCO4qF9gH_6tNLzt4lj8V7Rw; __gpi=UID=00000d16d0568f6c:T=1702255293:RT=1702255293:S=ALNI_Ma1NpgmPZQNw_-zR7ZYSROoXQZi6w; _ga_ZSF3D6YSLC=GS1.1.1702255293.1.1.1702255374.0.0.0',
         'hx-current-url': 'https://ssstik.io/en',
         'hx-request': 'true',
         'hx-target': 'target',
@@ -59,15 +63,18 @@ def downloadVideo(link, id, movie_path):
         'tt': 'RjU5bWlk',
     }
 
-    print("STEP 4: Getting the download link")
-    print("If this step fails, PLEASE read the steps above")
     response = requests.post('https://ssstik.io/abc', params=params, cookies=cookies, headers=headers, data=data)
     downloadSoup = BeautifulSoup(response.text, "html.parser")
 
     downloadLink = downloadSoup.a["href"]
     videoTitle = downloadSoup.p.getText().strip()
+    
+    if 'tikcdn.io' not in downloadLink:
+        print('SOMETHING WENT WRONG WITH SSSTIK.IO AND DOWNLOAD LINK! SKIPPING FILE!')
+        ssstikProblemVideos.append(link)
+        return
 
-    print("STEP 5: Saving the video :)")
+    print(f"Saving the video using download link: {videoTitle}")
     mp4File = urlopen(downloadLink)
     # Feel free to change the download directory
     with open(f"{movie_path}{id}-{videoTitle}.mp4", "wb") as output:
@@ -78,16 +85,8 @@ def downloadVideo(link, id, movie_path):
             else:
                 break
 
-def get_vid_properties(file_path) -> list:
-    # Open the file and load its content as a JSON string
-    with open(file_path, 'r') as file:
-        json_str = file.read()
-
-    # Parse the JSON string to create a Python dictionary
-    try:
-        data = json.loads(json_str)
-    except json.JSONDecodeError as e:
-        print(f"Error decoding JSON: {e}")
+def get_vid_properties(data) -> list: #def get_vid_properties(file_path) -> list:
+    print('STEP 2: Grabbing video properties from hmtl (link/stats)')  
     
     link_ids = [item['id'] for item in data['itemList']]
     stats = [item['stats'] for item in data['itemList']]
@@ -117,18 +116,105 @@ def mp4_to_mov(movie_path) -> None:
                 else:
                     print("Skipped   " + fn)
 
+def get_html(user, numScrolls) -> dict:
+    print(f'STEP 1: Grabbing html to parse videos from tiktok channel: {user}')
+    # -----------------CODE-----------------
+    options = webdriver.ChromeOptions()
+    service = Service(executable_path='C:\\Users\\jacob\\OneDrive\\Desktop\\sidehustles\\transform-content\\src\\upload\\chromedriver.exe')
+    # options.add_experimental_option('excludeSwitches', ['enable-logging'])
+    options.add_argument("--log-level=3")
+    options.add_argument("user-data-dir=C:\\Users\\jacob\\AppData\\Local\\Google\\Chrome Beta\\User Data\\Profile 2")
+    options.binary_location = "C:\\Program Files\\Google\\Chrome Beta\\Application\\chrome.exe"
+
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # Create a new instance of the Chrome driver
+    driver = webdriver.Chrome(options=options)
+
+    accountLink = f'https://www.tiktok.com/@{user}'
+
+    # Go to the Google home page
+    driver.get(accountLink)
+
+    time.sleep(10)
+
+    for i in range(numScrolls):
+        driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+        time.sleep(5)
+
+    # Access requests via the `requests` attribute
+    dataList = []
+    for request in driver.requests:
+        if request.response:
+            if '/post/item_list/?WebIdLastTim' in request.url:
+                requestURL = request.url
+                headersTXT = request.headers
+
+                with open(current_dir + '\\headers.txt', 'w') as f:
+                    f.write(str(headersTXT))
+                    
+                headers = {}
+                with open(current_dir + '\\headers.txt') as f:
+                    for line in f.read().splitlines():
+                        if ': ' in line:
+                            headers[str(line.split(': ',1)[0])] = str(line.split(': ',1)[1])
+                    
+                client = httpx.Client(http2=True)
+
+                try:
+                    # Perform the request
+                    response = client.get(requestURL, headers=headers)
+
+                    # Check if the response was received via HTTP/2
+                    protocol = response.http_version
+                    print(f'Response received via: {protocol}')
+
+                    dataList.append(json.loads(response.text))
+
+                finally:
+                    # Close the client
+                    client.close()
+
+    itemList = []
+    itemListIDs = []
+
+    for i in range(len(dataList)):
+        for j in range(len(dataList[i]['itemList'])):
+            if dataList[i]['itemList'][j]['id'] not in itemListIDs:
+                itemList.append(dataList[i]['itemList'][j])
+                itemListIDs.append(dataList[i]['itemList'][j]['id'])
+
+    dataList[0]['itemList'] = itemList
+
+    return dataList[0]
+
 if __name__ == "__main__":
     user = "qinhan111"
+    numScrolls = 2 # HOW MANY TIMES DO YOU WANT TO SCROLL THIS USERS PAGE? (THIS WILL DETERMINE HOW MANY VIDEOS YOU DOWNLOAD)
+    htmlResponse = get_html(user, numScrolls=numScrolls)
     current_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = current_dir + '\\data.txt'
     mov_path = current_dir + '\\..\\upload\\videos\\'
+    alreadyDownloadedVideos = []
+    ssstikProblemVideos = []
 
     if not os.path.exists(mov_path):
         os.mkdir(mov_path)
 
-    link_ids, stats = get_vid_properties(file_path)
+    link_ids, stats = get_vid_properties(htmlResponse)
+    
+    if len(link_ids) == len(set(link_ids)):
+        print("ALL ID'S ARE UNIQUE!!")
+    else:
+        print('=========== OH NO ===============')
 
     main(user, link_ids, mov_path)
     
     mp4_to_mov(mov_path)
-        
+    
+    print('ALREADY DOWNLOADED VIDEOS: ')
+    print('-------------------------------------------------')
+    print(alreadyDownloadedVideos)
+    print('PROBLEMED VIDEOS: ')
+    print('-------------------------------------------------')  
+    print(ssstikProblemVideos)
