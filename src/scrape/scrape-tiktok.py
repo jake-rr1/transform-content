@@ -121,11 +121,14 @@ if __name__ == "__main__":
     user = "qinhan111"
     current_dir = os.path.dirname(os.path.realpath(__file__))
     file_path = current_dir + '\\data.txt'
-    mov_path = current_dir + '\\videos\\'
+    mov_path = current_dir + '\\..\\upload\\videos\\'
+
+    if not os.path.exists(mov_path):
+        os.mkdir(mov_path)
 
     link_ids, stats = get_vid_properties(file_path)
 
-    main(user, link_ids, mov_path)
+    # main(user, link_ids, mov_path)
     
     mp4_to_mov(mov_path)
         
