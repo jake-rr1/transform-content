@@ -53,8 +53,8 @@ elif(int(answer) == 2):
         password_input = bot.find_elements(By.CSS_SELECTOR, "input[name='password']")
 
         if username_input != []:
-            username_input.send_keys(os.getenv('USERNAME'))
-            password_input.send_keys(os.getenv('PASSWORD'))
+            username_input[0].send_keys(os.getenv('IG_TT_YT_USERNAME'))
+            password_input[0].send_keys(os.getenv('IG_TT_YT_PASSWORD'))
             
             login_button = bot.find_element(By.XPATH, "//button[@type='submit']")
             login_button.click()
