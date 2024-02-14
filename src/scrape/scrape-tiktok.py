@@ -128,7 +128,7 @@ if __name__ == "__main__":
 
     link_ids, stats = get_vid_properties(file_path)
 
-    # main(user, link_ids, mov_path)
+    main(user, link_ids, mov_path)
     
     mp4_to_mov(mov_path)
         
