@@ -8,6 +8,7 @@ from seleniumwire import webdriver  # Import from seleniumwire
 from selenium.webdriver.chrome.service import Service
 import httpx
 from dotenv import load_dotenv
+import subprocess
 
 def main(mov_path) -> None:
     # get html data and put into data.txt
@@ -101,9 +102,6 @@ def get_vid_properties(data) -> list:
     return link_ids, stats
 
 def mp4_to_mov(movie_path) -> None:
-    import os
-    import subprocess
-
     for fn in os.listdir(movie_path):
         print("Converting " + movie_path + fn + " to .mov file")
         print(fn[:-4])
@@ -156,12 +154,13 @@ def get_html(user, numScrolls) -> dict:
             if '/post/item_list/?WebIdLastTim' in request.url:
                 requestURL = request.url
                 headersTXT = request.headers
+                headersFile = current_dir + '\\headers.txt'
 
-                with open(current_dir + '\\headers.txt', 'w') as f:
+                with open(headersFile, 'w') as f:
                     f.write(str(headersTXT))
                     
                 headers = {}
-                with open(current_dir + '\\headers.txt') as f:
+                with open(headersFile) as f:
                     for line in f.read().splitlines():
                         if ': ' in line:
                             headers[str(line.split(': ',1)[0])] = str(line.split(': ',1)[1])
@@ -181,6 +180,8 @@ def get_html(user, numScrolls) -> dict:
                 finally:
                     # Close the client
                     client.close()
+
+    os.remove(headersFile)
 
     itemList = []
     itemListIDs = []
