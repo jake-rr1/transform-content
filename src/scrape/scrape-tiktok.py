@@ -165,7 +165,7 @@ def get_html(user, numScrolls) -> dict:
                     for line in f.read().splitlines():
                         if ': ' in line:
                             headers[str(line.split(': ',1)[0])] = str(line.split(': ',1)[1])
-                    
+                
                 client = httpx.Client(http2=True)
 
                 try:
