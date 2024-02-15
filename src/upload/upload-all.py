@@ -70,7 +70,7 @@ elif(int(answer) == 2):
         file_input = bot.find_element(By.XPATH, "//*[@class='x6s0dn4 x78zum5 x5yr21d xl56j7k x1n2onr6 xh8yej3']/form/input")
         simp_path = current_dir + f"\\videos\\{vid}"
         abs_path = os.path.abspath(simp_path)
-                
+                        
         file_input.send_keys(abs_path)
         
         time.sleep(7)
@@ -201,6 +201,10 @@ elif(int(answer) == 2):
         
         time.sleep(60)
         bot.quit()
+        
+        print(vid + ' UPLOADED SUCCESSFULLY TO ALL PLATFORMS! REMOVING VIDEO FROM STORAGE...')
+        os.remove(abs_path)
+        
         time.sleep(3600)
 
 

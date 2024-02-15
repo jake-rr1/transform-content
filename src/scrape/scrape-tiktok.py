@@ -12,11 +12,6 @@ from glob import glob
 def main(user, link_ids, mov_path) -> None:
     urlsToDownload = [f"https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
     
-    if len(urlsToDownload) != len(set(urlsToDownload)):
-        print("========== OH NO ===========")
-    else:
-        print("================ OK ================")
-
     print(f"STEP 3: Time to download {len(urlsToDownload)} videos")
     for index, url in enumerate(urlsToDownload):
         downloadVideo(url, index, mov_path)
@@ -65,19 +60,20 @@ def downloadVideo(link, id, movie_path):
 
     response = requests.post('https://ssstik.io/abc', params=params, cookies=cookies, headers=headers, data=data)
     downloadSoup = BeautifulSoup(response.text, "html.parser")
-
     downloadLink = downloadSoup.a["href"]
-    videoTitle = downloadSoup.p.getText().strip()
     
     if 'tikcdn.io' not in downloadLink:
         print('SOMETHING WENT WRONG WITH SSSTIK.IO AND DOWNLOAD LINK! SKIPPING FILE!')
         ssstikProblemVideos.append(link)
         return
+    
+    videoTitle = downloadSoup.p.getText().strip()
+    vidName = f"{movie_path}{str(id).zfill(4)}-{videoTitle}.mp4"
 
     print(f"Saving the video using download link: {videoTitle}")
     mp4File = urlopen(downloadLink)
     # Feel free to change the download directory
-    with open(f"{movie_path}{id}-{videoTitle}.mp4", "wb") as output:
+    with open(vidName, "wb") as output:
         while True:
             data = mp4File.read(4096)
             if data:
@@ -85,7 +81,7 @@ def downloadVideo(link, id, movie_path):
             else:
                 break
 
-def get_vid_properties(data) -> list: #def get_vid_properties(file_path) -> list:
+def get_vid_properties(data) -> list:
     print('STEP 2: Grabbing video properties from hmtl (link/stats)')  
     
     link_ids = [item['id'] for item in data['itemList']]
@@ -189,32 +185,41 @@ def get_html(user, numScrolls) -> dict:
     return dataList[0]
 
 if __name__ == "__main__":
-    user = "qinhan111"
-    numScrolls = 2 # HOW MANY TIMES DO YOU WANT TO SCROLL THIS USERS PAGE? (THIS WILL DETERMINE HOW MANY VIDEOS YOU DOWNLOAD)
-    htmlResponse = get_html(user, numScrolls=numScrolls)
+    from dotenv import load_dotenv
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    file_path = current_dir + '\\data.txt'
-    mov_path = current_dir + '\\..\\upload\\videos\\'
+    load_dotenv(current_dir + '\\inputs.txt')
+    
+    # get inputs
+    user = os.getenv("USER")
+    numScrolls = os.getenv("NUMBER_OF_SCROLLS") 
+    mov_path = os.getenv("TIKTOK_DOWNLOAD_PATH")
+    mov_path_split = mov_path.split('\\')
+    mov_path_split[-2] = f'videos-{user}'
+    mov_path = '\\'.join(mov_path_split)
+    
+    print(mov_path)
+    
+    # get html data and put into data.txt
+    htmlResponse = get_html(user, numScrolls=numScrolls) 
+    
     alreadyDownloadedVideos = []
     ssstikProblemVideos = []
 
     if not os.path.exists(mov_path):
         os.mkdir(mov_path)
 
+    # get link ids and statistics from videos
     link_ids, stats = get_vid_properties(htmlResponse)
-    
-    if len(link_ids) == len(set(link_ids)):
-        print("ALL ID'S ARE UNIQUE!!")
-    else:
-        print('=========== OH NO ===============')
 
+    # download vidoes as mp4
     main(user, link_ids, mov_path)
     
+    # convert mp4 to mov
     mp4_to_mov(mov_path)
     
     print('ALREADY DOWNLOADED VIDEOS: ')
     print('-------------------------------------------------')
     print(alreadyDownloadedVideos)
-    print('PROBLEMED VIDEOS: ')
+    print('PROBLEMATIC VIDEOS: ')
     print('-------------------------------------------------')  
     print(ssstikProblemVideos)
