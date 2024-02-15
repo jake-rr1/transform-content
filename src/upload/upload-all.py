@@ -53,8 +53,6 @@ elif(int(answer) == 2):
         
         bot.get('https://www.instagram.com/')
 
-    
-
         time.sleep(3)
 
         username_input = bot.find_elements(By.CSS_SELECTOR, "input[name='username']")
