@@ -10,9 +10,6 @@ import httpx
 from dotenv import load_dotenv
 
 def main(mov_path) -> None:
-    # videos that have problems with being downloaded from ssstik.io
-    ssstikProblemVideos = []
-    
     # get html data and put into data.txt
     htmlResponse = get_html(user, numScrolls=numScrolls) 
     
@@ -30,10 +27,6 @@ def main(mov_path) -> None:
         
     # convert mp4 to mov
     mp4_to_mov(mov_path)
-
-    print('PROBLEMATIC VIDEOS: ')
-    print('-------------------------------------------------')  
-    print(ssstikProblemVideos)
 
 def downloadVideo(link, id, movie_path):
     print(f"Downloading video {id} from: {link}")
@@ -217,7 +210,12 @@ if __name__ == "__main__":
     mov_path_split[-2] = f'videos-{user}'
     mov_path = '\\'.join(mov_path_split)
     
+    # videos that had problems downloading from ssstik.io
+    ssstikProblemVideos = []
+    
     # download vidoes as mp4
     main(mov_path)
     
-    
+    print('PROBLEMATIC VIDEOS: ')
+    print('-------------------------------------------------')  
+    print(ssstikProblemVideos)
