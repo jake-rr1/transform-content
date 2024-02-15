@@ -7,15 +7,33 @@ import os
 from seleniumwire import webdriver  # Import from seleniumwire
 from selenium.webdriver.chrome.service import Service
 import httpx
-from glob import glob
+from dotenv import load_dotenv
 
-def main(user, link_ids, mov_path) -> None:
+def main(mov_path) -> None:
+    # videos that have problems with being downloaded from ssstik.io
+    ssstikProblemVideos = []
+    
+    # get html data and put into data.txt
+    htmlResponse = get_html(user, numScrolls=numScrolls) 
+    
+    # get link ids and statistics from videos
+    link_ids, stats = get_vid_properties(htmlResponse)
+    
+    # get urls from link ids
     urlsToDownload = [f"https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
     
+    # download mp4 files
     print(f"STEP 3: Time to download {len(urlsToDownload)} videos")
     for index, url in enumerate(urlsToDownload):
         downloadVideo(url, index, mov_path)
         time.sleep(10)
+        
+    # convert mp4 to mov
+    mp4_to_mov(mov_path)
+
+    print('PROBLEMATIC VIDEOS: ')
+    print('-------------------------------------------------')  
+    print(ssstikProblemVideos)
 
 def downloadVideo(link, id, movie_path):
     print(f"Downloading video {id} from: {link}")
@@ -185,41 +203,21 @@ def get_html(user, numScrolls) -> dict:
     return dataList[0]
 
 if __name__ == "__main__":
-    from dotenv import load_dotenv
+    # add inputs to os environment
     current_dir = os.path.dirname(os.path.realpath(__file__))
     load_dotenv(current_dir + '\\inputs.txt')
     
     # get inputs
     user = os.getenv("USER")
-    numScrolls = os.getenv("NUMBER_OF_SCROLLS") 
+    numScrolls = int(os.getenv("NUMBER_OF_SCROLLS"))
     mov_path = os.getenv("TIKTOK_DOWNLOAD_PATH")
+    
+    # create unique videos-{user} folder
     mov_path_split = mov_path.split('\\')
     mov_path_split[-2] = f'videos-{user}'
     mov_path = '\\'.join(mov_path_split)
     
-    print(mov_path)
-    
-    # get html data and put into data.txt
-    htmlResponse = get_html(user, numScrolls=numScrolls) 
-    
-    alreadyDownloadedVideos = []
-    ssstikProblemVideos = []
-
-    if not os.path.exists(mov_path):
-        os.mkdir(mov_path)
-
-    # get link ids and statistics from videos
-    link_ids, stats = get_vid_properties(htmlResponse)
-
     # download vidoes as mp4
-    main(user, link_ids, mov_path)
+    main(mov_path)
     
-    # convert mp4 to mov
-    mp4_to_mov(mov_path)
     
-    print('ALREADY DOWNLOADED VIDEOS: ')
-    print('-------------------------------------------------')
-    print(alreadyDownloadedVideos)
-    print('PROBLEMATIC VIDEOS: ')
-    print('-------------------------------------------------')  
-    print(ssstikProblemVideos)

@@ -1,8 +1,8 @@
 # TIKTOK USER TO SCRAPE VIDEOS FROM
-USER = "qinhan111" 
+USER = qinhan111
 
 # HOW MANY TIMES DO YOU WANT TO SCROLL THIS USERS PAGE? (THIS WILL DETERMINE HOW MANY VIDEOS YOU DOWNLOAD)
 NUMBER_OF_SCROLLS = 2 
 
 # PATH TO DOWNLOAD SCRAPED TIKTOK VIDEOS (THE FINAL DIRECTORY SHOULD BE NAMED 'videos')
-TIKTOK_DOWNLOAD_PATH = 'C:\\Users\\jacob\\OneDrive\\Desktop\\sidehustles\\transform-content\\src\\upload\\videos\\' 
+TIKTOK_DOWNLOAD_PATH = C:\Users\jacob\OneDrive\Desktop\sidehustles\transform-content\src\upload\videos\
