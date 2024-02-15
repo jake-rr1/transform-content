@@ -10,31 +10,35 @@ from dotenv import load_dotenv
 
 options = webdriver.ChromeOptions()
 service = Service(executable_path='chromedriver.exe')
-# options.add_experimental_option('excludeSwitches', ['enable-logging'])
 options.add_argument("--log-level=3")
 options.add_argument("user-data-dir=C:\\Users\\jacob\\AppData\\Local\\Google\\Chrome Beta\\User Data\\Profile 2")
 options.binary_location = "C:\\Program Files\\Google\\Chrome Beta\\Application\\chrome.exe"
-print("\033[1;31;40m IMPORTANT: Put one or more videos in the *videos* folder in this directory")
-answer = 2 #input("\033[1;32;40m Press 1 if you want to spam same video or Press 2 if you want to upload multiple videos: ")
-
-txt = colored('-----', 'white')
-print(txt)
+answer = 2 # 1 if you want to spam same video or 2 if you want to upload multiple videos
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
+if not os.path.exists(current_dir + '\\.env'):
+    accountInfoTemplate = 'INSTAGRAM_USERNAME=\'\'\nTIKTOK_USERNAME=\'\'\nYOUTUBE_USERNAME=\'\'\nINSTAGRAM_PASSWORD=\'\'\nTIKTOK_PASSWORD=\'\'\nYOUTUBE_PASSWORD=\'\''
+    with open(current_dir + '\\.env', 'w') as f:
+        f.write(str(accountInfoTemplate))
+    print(colored("ERROR: No .env file found. Creating .env file. Please go into the .env file and fill out the information.", 'red'))
+    exit()
+
 load_dotenv(current_dir + '\\.env')
+load_dotenv(current_dir + '\\inputs.txt')
+user = os.getenv('USER')
 
 if(int(answer) == 1):
+    # TODO UPDATE CODE TO WORK WITH THIS SETTING
+    
     nameofvid = input("\033[1;33;40m Put the name of the video you want to upload (Ex: vid.mp4 or myshort.mp4 etc..) ---> ")
     howmany = input("\033[1;33;40m How many times you want to upload this video ---> ")
     
-    print(txt)
-
     for i in range(int(howmany)):
         print("UPDATE CODE TO WORK WITH THIS SETTING")
 
 elif(int(answer) == 2):
-    dir_path = current_dir + '\\videos'
+    dir_path = current_dir + f'\\videos-{user}'
     count = 0
 
     for path in os.listdir(dir_path):
@@ -55,8 +59,8 @@ elif(int(answer) == 2):
         password_input = bot.find_elements(By.CSS_SELECTOR, "input[name='password']")
 
         if username_input != []:
-            username_input[0].send_keys(os.getenv('IG_TT_YT_USERNAME'))
-            password_input[0].send_keys(os.getenv('IG_TT_YT_PASSWORD'))
+            username_input[0].send_keys(os.getenv('INSTAGRAM_USERNAME'))
+            password_input[0].send_keys(os.getenv('INSTAGRAM_PASSWORD'))
             
             login_button = bot.find_element(By.XPATH, "//button[@type='submit']")
             login_button.click()
@@ -152,8 +156,8 @@ elif(int(answer) == 2):
             username_input = bot.find_elements(By.CSS_SELECTOR, "input[name='username']")
             password_input = bot.find_elements(By.CSS_SELECTOR, "input[type='password']")
             
-            username_input[0].send_keys(os.getenv('IG_TT_YT_USERNAME'))
-            password_input[0].send_keys(os.getenv('IG_TT_YT_PASSWORD'))
+            username_input[0].send_keys(os.getenv('TIKTOK_USERNAME'))
+            password_input[0].send_keys(os.getenv('TIKTOK_PASSWORD'))
             
             time.sleep(2)
             
