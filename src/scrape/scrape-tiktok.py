@@ -25,9 +25,6 @@ def main(mov_path) -> None:
     for index, url in enumerate(urlsToDownload):
         downloadVideo(url, index, mov_path)
         time.sleep(10)
-        
-    # convert mp4 to mov
-    mp4_to_mov(mov_path)
 
 def downloadVideo(link, id, movie_path):
     print(f"Downloading video {id} from: {link}")

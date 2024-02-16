@@ -38,15 +38,15 @@ if(int(answer) == 1):
         print("UPDATE CODE TO WORK WITH THIS SETTING")
 
 elif(int(answer) == 2):
-    dir_path = current_dir + f'\\videos-{user}'
+    path_to_videos = current_dir + f'\\videos-{user}'
     count = 0
 
-    for path in os.listdir(dir_path):
-        if os.path.isfile(os.path.join(dir_path, path)):
+    for path in os.listdir(path_to_videos):
+        if os.path.isfile(os.path.join(path_to_videos, path)):
             count += 1
     print("   ", count, " Videos found in the videos folder, ready to upload...")
 
-    for vid in os.listdir(dir_path):
+    for vid in os.listdir(path_to_videos):
         bot = webdriver.Chrome(options=options)
 
         # UPLOAD ON INSTAGRAM REELS
