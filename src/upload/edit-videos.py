@@ -3,9 +3,23 @@ import os
 from dotenv import load_dotenv
 import subprocess
 from elevenlabs import Voice, VoiceSettings, save, generate
+import elevenlabs
 from termcolor import colored
 import json
 import whisper_timestamped as whisper
+
+# self-made imports
+import gpt
+from imagecaptions import predict_caption
+
+# image saving imports
+from datetime import timedelta
+import cv2
+import numpy as np
+import os
+
+# CREATE PROTONVPN EMAIL AND SIGN UP FOR ELEVENLABS, GRAB API KEY, AND INSERT INTO .api FILE
+
 
 # CONVERT .mov TO .mov
 def mp4_to_mov(movie_path) -> None:
@@ -27,9 +41,109 @@ def mp4_to_mov(movie_path) -> None:
                     print("Converted " + fn)
                 else:
                     print("Skipped   " + fn)
+
+def get_video_duration(filename):
+    result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
+                             "format=duration", "-of",
+                             "default=noprint_wrappers=1:nokey=1", filename],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
+    return float(result.stdout)
+
+def format_timedelta(td):
+    """Utility function to format timedelta objects in a cool way (e.g 00:00:20.05) 
+    omitting microseconds and retaining milliseconds"""
+    result = str(td)
+    try:
+        result, ms = result.split(".")
+    except ValueError:
+        return (result + ".00").replace(":", "-")
+    ms = int(ms)
+    ms = round(ms / 1e4)
+    return f"{result}.{ms:02}".replace(":", "-")
+
+
+def get_saving_frames_durations(cap, saving_fps):
+    """A function that returns the list of durations where to save the frames"""
+    s = []
+    # get the clip duration by dividing number of frames by the number of frames per second
+    clip_duration = cap.get(cv2.CAP_PROP_FRAME_COUNT) / cap.get(cv2.CAP_PROP_FPS)
+    # use np.arange() to make floating-point steps
+    for i in np.arange(0, clip_duration, 1 / saving_fps):
+        s.append(i)
+    return s
+
+def save_frames(video_file, SAVING_FRAMES_PER_SECOND, title_with_id):
+    filename, _ = os.path.splitext(video_file)
+    # define save directory
+    save_dir = filename.replace(f'videos-{user}', f'images-{user}')
+    # read the video file    
+    cap = cv2.VideoCapture(video_file)
+    # get the FPS of the video
+    fps = cap.get(cv2.CAP_PROP_FPS)
+    # if the SAVING_FRAMES_PER_SECOND is above video FPS, then set it to FPS (as maximum)
+    saving_frames_per_second = min(fps, SAVING_FRAMES_PER_SECOND)
+    # get the list of duration spots to save
+    saving_frames_durations = get_saving_frames_durations(cap, saving_frames_per_second)
+    # start the loop
+    count = 0
+    
+    while True:
+        is_read, frame = cap.read()
+        if not is_read:
+            # break out of the loop if there are no frames to read
+            break
+        # get the duration by dividing the frame count by the FPS
+        frame_duration = count / fps
+        try:
+            # get the earliest duration to save
+            closest_duration = saving_frames_durations[0]
+        except IndexError:
+            # the list is empty, all duration frames were saved
+            break
+        if frame_duration >= closest_duration:
+            # if closest duration is less than or equals the frame duration, 
+            # then save the frame
+            frame_duration_formatted = format_timedelta(timedelta(seconds=frame_duration))
+            print("SAVING VIDEO FRAME: ", f"frame{frame_duration_formatted}.png (VIDEO: {title_with_id})")
+            cv2.imwrite(os.path.join(save_dir, f"frame{frame_duration_formatted}.png"), frame) 
+            # drop the duration spot from the list, since this duration spot is already saved
+            try:
+                saving_frames_durations.pop(0)
+            except IndexError:
+                pass
+        # increment the frame count
+        count += 1
+            
+def get_voiceover_texts(path_to_videos):
+    print("GENERATING TEXTS FOR VOICEOVERS")
+    voiceover_texts = {}
+    for file in os.listdir(path_to_videos):
+        title_with_id = file.split('.')[0]
+        if not os.path.exists(path_to_images + title_with_id):
+            os.mkdir(path_to_images + title_with_id) 
+        
+        video_file = path_to_videos + title_with_id + '.mp4'
+        
+        video_duration = get_video_duration(video_file)
+        
+        SAVING_FRAMES_PER_SECOND = num_frames_to_save/video_duration
+        
+        save_frames(video_file=video_file, SAVING_FRAMES_PER_SECOND=SAVING_FRAMES_PER_SECOND, title_with_id=title_with_id)   
+          
+        images = []
+        for image in os.listdir(path_to_images + title_with_id + '\\'):
+            images.append(path_to_images + title_with_id + '\\' + image)
+    
+        frame_by_frame = predict_caption(images)
+                
+        voiceover_texts[title_with_id] = gpt.gpt_response(frame_by_frame)
+        
+    return voiceover_texts
                     
 # GET VOICEOVER
-def get_voiceover(voiceID, stability, similarity_boost):
+def get_voiceover(voiceID, stability, similarity_boost) -> dict:
+    print("GENERATING VOICEOVERS")
     voice_to_use = Voice(
         voice_id = voiceID,
         settings = VoiceSettings(
@@ -39,11 +153,13 @@ def get_voiceover(voiceID, stability, similarity_boost):
             use_speaker_boost=True
         )
     )
+        
+    voiceover_texts = get_voiceover_texts(path_to_videos=path_to_videos)
     
-    return voice_to_use
+    return voice_to_use, voiceover_texts
 
 # GET WORD BY WORD TIMESTAMPS
-def get_word_breakdown(mp3File):
+def get_word_breakdown(mp3File) -> list:
     model = whisper.load_model('base')
     audio = whisper.load_audio(mp3File)
     result = whisper.transcribe(model, audio, language='en')
@@ -57,10 +173,9 @@ def get_word_breakdown(mp3File):
 
 # ADD THE CAPTIONS TO THE FINAL CLIP
 def add_captions(video, title, audio_clip_end):   
-    if '|' in voiceover_text: 
-        print('GETTING START WORDS')
+    print("GENERATING CAPTIONS")
+    if '|' in voiceover_texts[title]: 
         start_words = get_word_breakdown((path_to_audios + title + '-start.mp3'))
-        print('GETTING END WORDS')
         end_words = get_word_breakdown((path_to_audios + title + '-end.mp3'))
     else:
         start_words = get_word_breakdown((path_to_audios + title + '.mp3'))
@@ -72,9 +187,9 @@ def add_captions(video, title, audio_clip_end):
     
     all_clips.append(video)
 
-    if '|' in voiceover_text:
+    if '|' in voiceover_texts[title]:
         end_words_final = end_words[-1]['end']
-        for pIdx, phrase in enumerate(voiceover_text.split('|')):
+        for pIdx, phrase in enumerate(voiceover_texts[title].split('|')):
             for idx, word in enumerate(phrase.split(' ')):
                 print('ADDING ' + phrase.split(' ')[idx] + ' TO SUBTITLES')
                 if pIdx == 0:
@@ -85,9 +200,6 @@ def add_captions(video, title, audio_clip_end):
                     start_time = video_duration - audio_clip_end.duration + end_words[idx]['start'] - 2
                     end_time = video_duration - audio_clip_end.duration + end_words[idx]['end'] - 2
                     current_text_clip = TextClip(word, stroke_width=subtitle_outline, stroke_color='black', fontsize = subtitle_fontsize*10, color = 'white', bg_color='transparent', font=subtitle_font, method='caption').set_start(start_time).set_end(end_time)
-                    
-                    if idx == len(phrase.split(' '))-1:
-                        print('OUTRO TEXT ENDING POINT: ' + str(video_duration - audio_clip_end.duration + end_words[idx]['start'] - 2))
                 
                 # 3. Define the Resize (Scaling) Function
                 def resize(t):
@@ -106,10 +218,10 @@ def add_captions(video, title, audio_clip_end):
                 all_clips.append(txt_moving_resized)
     else:
         for idx, word in enumerate(start_words):
-            print('ADDING ' + voiceover_text.split(' ')[idx] + ' TO SUBTITLES')
+            print('ADDING ' + voiceover_texts[title].split(' ')[idx] + ' TO SUBTITLES')
             
             duration = start_words[idx]['end'] - start_words[idx]['start']
-            current_text_clip = TextClip(voiceover_text.split(' ')[idx], stroke_width=subtitle_outline, stroke_color='black', fontsize = subtitle_fontsize*10, color = 'white', bg_color='transparent', font=subtitle_font, method='caption').set_start(start_words[idx]['start']).set_end(start_words[idx]['end'])
+            current_text_clip = TextClip(voiceover_texts[title].split(' ')[idx], stroke_width=subtitle_outline, stroke_color='black', fontsize = subtitle_fontsize*10, color = 'white', bg_color='transparent', font=subtitle_font, method='caption').set_start(start_words[idx]['start']).set_end(start_words[idx]['end'])
 
             # 3. Define the Resize (Scaling) Function
             def resize(t):
@@ -136,7 +248,7 @@ def add_captions(video, title, audio_clip_end):
     raise 'test'
 
 # CREATE VIDEOS WITH VOICEOVER AND CAPTION
-def edit_videos(voiceover_text, voice_to_use):
+def edit_videos(voiceover_texts, voice_to_use):
     for file in os.listdir(path_to_videos):
         # Get the desired video title
         title_with_id = file.split('.')[0]
@@ -145,19 +257,30 @@ def edit_videos(voiceover_text, voice_to_use):
         audio_file_start = path_to_audios + title_with_id + '-start.mp3'
         audio_file_end = path_to_audios + title_with_id + '-end.mp3'
         
+        if ' | ' in voiceover_texts[title_with_id]:
+            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace(' | ', '|')
+        elif ' |' in voiceover_texts[title_with_id]:
+            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace(' |', '|')
+        elif '| ' in voiceover_texts[title_with_id]:
+            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace('| ', '|')
+        elif '|' in voiceover_texts[title_with_id]:
+            voiceover_texts[title_with_id] = voiceover_texts[title_with_id]
+        else:
+            print(colored('STRANGE | SCENARIO', 'red'))
+        
         print(colored('---------------', 'white'))
         print(colored('', 'white'))
         print(colored('EDITING VIDEO: ' + video_file.split('\\')[-1], 'red'))
         print(colored('', 'white'))
         
-        if '|' in voiceover_text:
+        if '|' in voiceover_texts[title_with_id]:
             tts_audio_start = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_text.split('|')[0], 
+                                text=voiceover_texts[title_with_id].split('|')[0], 
                                 voice=voice_to_use,
                                 )
             
             tts_audio_end = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_text.split('|')[1], 
+                                text=voiceover_texts[title_with_id].split('|')[1], 
                                 voice=voice_to_use,
                                 )
             
@@ -183,12 +306,11 @@ def edit_videos(voiceover_text, voice_to_use):
             audio_clip_start = AudioFileClip(audio_file_start)
             audio_clip_end = AudioFileClip(audio_file_end)
             audio_clip_end = audio_clip_end.set_start(audio_start_time)
-            print('OUTRO AUDIO ENDING POINT: ' + str(audio_start_time))
             audio_clip = audio_clip_end
             final_audio_clip = CompositeAudioClip([audio_clip_start, audio_clip_end, original_audio_clip])
         else:
             tts_audio = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_text.split('|')[0], 
+                                text=voiceover_texts[title_with_id].split('|')[0], 
                                 voice=voice_to_use,
                                 )
             
@@ -218,14 +340,29 @@ def edit_videos(voiceover_text, voice_to_use):
         print(colored('VIDEO SUCCESSFULLY EDITED AND SAVED: ' + video_file.split('\\')[-1], 'green'))
         print(colored('', 'white'))
 
+def construct_dict_of_voices():
+    voices = elevenlabs.voices()
+    voices_dict = {}
+    
+    for voice in voices:
+        voices_dict[voice.name] = voice.voice_id
+
+    return voices_dict
+
 if __name__ == '__main__':
+    # CONSTRUCT DICTIONARY MAPPING NAMES TO VOICES
+    voices_dict = construct_dict_of_voices()
+    
     # LOAD VARIABLES
     current_dir = os.path.dirname(os.path.realpath(__file__))
     
     if not os.path.exists(current_dir + '\\.api'):
-        apiKeyTemplate = 'ELEVENLABS_API_KEY = '
+        apiKeyTemplate = ['ELEVENLABS_API_KEY = ', 'OPENAI_API_KEY = ', 'CLOUDMERSIVE_API_KEY = ']
         with open(current_dir + '\\.api', 'w') as f:
-            f.write(str(apiKeyTemplate))
+            f.write(str(apiKeyTemplate[0]) + '\n')
+            f.write(str(apiKeyTemplate[1]) + '\n')
+            f.write(str(apiKeyTemplate[2]))
+            
         print(colored("ERROR: No .api file found. Creating .api file... Please go into the .api file and fill out the information.", 'red'))
         exit()
     
@@ -233,20 +370,22 @@ if __name__ == '__main__':
     elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
     load_dotenv(current_dir + '\\inputs.txt')
     user = os.getenv('USER')
-    voice_id = os.getenv('VOICE_ID')
+    voice_name = os.getenv('VOICE_NAME')
+    voice_id = voices_dict[voice_name]
     voice_stability = float(os.getenv('VOICE_STABILITY'))
     voice_similarity_boost = float(os.getenv('VOICE_SIMILARITY_BOOST'))
     subtitle_font = os.getenv('SUBTITLE_FONT')
     subtitle_outline = float(os.getenv('SUBTITLE_OUTLINE'))
-    voiceover_text = os.getenv('VOICEOVER_TEXT').upper()
     subtitle_fontsize = float(os.getenv('SUBTITLE_FONTSIZE'))
     subtitle_y_position = float(os.getenv('SUBTITLE_Y_POSITION'))
+    num_frames_to_save = float(os.getenv('SAVE_FRAMES'))
     
     # DEFINE PATHS
     path_to_videos = current_dir + f'\\videos-{user}\\'
     path_to_audios = current_dir + f'\\audios-{user}\\'
     path_to_subtitles = current_dir + f'\\subtitles-{user}\\'
     path_to_complete = current_dir + f'\\complete-{user}\\'
+    path_to_images = current_dir + f'\\images-{user}\\'
 
     # CREATE DIRECTORIES
     if not os.path.exists(path_to_audios):
@@ -257,7 +396,12 @@ if __name__ == '__main__':
     
     if not os.path.exists(path_to_subtitles):
         os.mkdir(path_to_subtitles)
+        
+    if not os.path.exists(path_to_images):
+        os.mkdir(path_to_images)
     
-    voice_to_use = get_voiceover(voice_id, voice_stability, voice_similarity_boost)
+    voice_to_use, voiceover_texts = get_voiceover(voice_id, voice_stability, voice_similarity_boost)
     
-    edit_videos(voiceover_text, voice_to_use)
+    print(voiceover_texts)
+            
+    edit_videos(voiceover_texts, voice_to_use)

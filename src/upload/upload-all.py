@@ -17,6 +17,8 @@ answer = 2 # 1 if you want to spam same video or 2 if you want to upload multipl
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
+os.chdir(current_dir)
+
 if not os.path.exists(current_dir + '\\.env'):
     accountInfoTemplate = 'INSTAGRAM_USERNAME=\'\'\nTIKTOK_USERNAME=\'\'\nYOUTUBE_USERNAME=\'\'\nINSTAGRAM_PASSWORD=\'\'\nTIKTOK_PASSWORD=\'\'\nYOUTUBE_PASSWORD=\'\''
     with open(current_dir + '\\.env', 'w') as f:
