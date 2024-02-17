@@ -5,7 +5,22 @@ USER = qinhan111
 VOICE_ID = '21m00Tcm4TlvDq8ikWAM'
 
 # ELEVENLABS VOICE STABILITY SETTING
-VOICE_STABILITY = 0.25
+VOICE_STABILITY = .7
 
 # ELEVENLABS VOICE SIMILARITY BOOST SETTING
-VOICE_SIMILARITY_BOOST = 0.35
+VOICE_SIMILARITY_BOOST = 0.5
+
+# SUBTITLE FONT 
+SUBTITLE_FONT = 'Bardy'
+
+# SUBTITLE FONT SIZE
+SUBTITLE_FONTSIZE = 35
+
+# SUBTITLE Y POSITION
+SUBTITLE_Y_POSITION = 0.7
+
+# OUTLINE WIDTH OF CAPTIONS
+SUBTITLE_OUTLINE = 20
+
+# VOICEOVER TEXT
+VOICEOVER_TEXT = "Alligators are vicious when they are threatened. Watch this alligator go through this swamp and kill it\'s prey!|Do you think you could take an alligator? Or would it ruthlessly eat you?"
