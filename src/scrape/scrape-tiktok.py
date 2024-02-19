@@ -9,6 +9,7 @@ from selenium.webdriver.chrome.service import Service
 import httpx
 from dotenv import load_dotenv
 import subprocess
+from tqdm import tqdm 
 
 def main(mov_path) -> None:
     # get html data and put into data.txt
@@ -21,14 +22,15 @@ def main(mov_path) -> None:
     urlsToDownload = [f"https://www.tiktok.com/@{user}/video/" + item for item in link_ids]
     
     # download mp4 files
-    print(f"STEP 3: Time to download {len(urlsToDownload)} videos")
-    for index, url in enumerate(urlsToDownload):
-        downloadVideo(url, index, mov_path)
-        time.sleep(10)
+    print(f"STEP 3: Downloading {len(urlsToDownload)} videos")
+    for index in tqdm(range(len(urlsToDownload))):
+        if any(link_ids[index] in s for s in os.listdir(mov_path)):
+            continue
+        else:
+            downloadVideo(urlsToDownload[index], link_ids[index], mov_path, index)
+            time.sleep(10)
 
-def downloadVideo(link, id, movie_path):
-    print(f"Downloading video {id} from: {link}")
-    
+def downloadVideo(link, id, movie_path, idx):    
     cookies = {
         '_ga': 'GA1.1.1568192361.1702255294',
         '__gads': 'ID=0a294eb2b7e4166e:T=1702255293:RT=1702255293:S=ALNI_MbvX6xCO4qF9gH_6tNLzt4lj8V7Rw',
@@ -72,14 +74,12 @@ def downloadVideo(link, id, movie_path):
     downloadLink = downloadSoup.a["href"]
     
     if 'tikcdn.io' not in downloadLink:
-        print('SOMETHING WENT WRONG WITH SSSTIK.IO AND DOWNLOAD LINK! SKIPPING FILE!')
         ssstikProblemVideos.append(link)
         return
     
     videoTitle = downloadSoup.p.getText().strip()
-    vidName = f"{movie_path}{str(id).zfill(4)}-{videoTitle}.mp4"
+    vidName = f"{movie_path}{str(idx).zfill(4)}_{id}-{videoTitle}.mp4"
 
-    print(f"Saving the video using download link: {videoTitle}")
     mp4File = urlopen(downloadLink)
     # Feel free to change the download directory
     with open(vidName, "wb") as output:
@@ -89,7 +89,7 @@ def downloadVideo(link, id, movie_path):
                 output.write(data)
             else:
                 break
-
+    
 def get_vid_properties(data) -> list:
     print('STEP 2: Grabbing video properties from hmtl (link/stats)')  
     
@@ -202,11 +202,14 @@ if __name__ == "__main__":
     user = os.getenv("USER")
     numScrolls = int(os.getenv("NUMBER_OF_SCROLLS"))
     mov_path = os.getenv("TIKTOK_DOWNLOAD_PATH")
+    user_path = mov_path + f"\\{user}"
+    mov_path = user_path + f"\\videos\\"
+
+    if not os.path.exists(user_path):      
+        os.mkdir(user_path)
     
-    # create unique videos-{user} folder
-    mov_path_split = mov_path.split('\\')
-    mov_path_split[-2] = f'videos-{user}'
-    mov_path = '\\'.join(mov_path_split)
+    if not os.path.exists(mov_path):      
+        os.mkdir(mov_path)
     
     # videos that had problems downloading from ssstik.io
     ssstikProblemVideos = []

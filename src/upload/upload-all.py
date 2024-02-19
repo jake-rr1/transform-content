@@ -38,7 +38,7 @@ if(int(answer) == 1):
         print("UPDATE CODE TO WORK WITH THIS SETTING")
 
 elif(int(answer) == 2):
-    path_to_videos = current_dir + f'\\complete-{user}'
+    path_to_videos = current_dir + f'\\{user}\\complete'
     count = 0
 
     for path in os.listdir(path_to_videos):
@@ -72,7 +72,7 @@ elif(int(answer) == 2):
         time.sleep(5)
         
         file_input = bot.find_element(By.XPATH, "//*[@class='x6s0dn4 x78zum5 x5yr21d xl56j7k x1n2onr6 xh8yej3']/form/input")
-        simp_path = current_dir + f"\\complete-{user}\\{vid}"
+        simp_path = current_dir + f"\\{user}\\complete\\{vid}"
         abs_path = os.path.abspath(simp_path)
                         
         file_input.send_keys(abs_path)
@@ -113,7 +113,7 @@ elif(int(answer) == 2):
         time.sleep(3)
 
         file_input = bot.find_element(By.XPATH, '//*[@id="content"]/input')
-        simp_path = current_dir + f"\\complete-{user}\\{vid}"
+        simp_path = current_dir + f"\\{user}\\complete\\{vid}"
         abs_path = os.path.abspath(simp_path)
         
         file_input.send_keys(abs_path)
@@ -176,7 +176,7 @@ elif(int(answer) == 2):
         bot.switch_to.frame(frame)
                 
         file_input = bot.find_element(By.XPATH, "//*[(@role='button') and (@class='jsx-3397029100')]/input")
-        simp_path = current_dir + f"\\complete-{user}\\{vid}"
+        simp_path = current_dir + f"\\{user}\\complete\\{vid}"
         abs_path = os.path.abspath(simp_path)
                 
         file_input.send_keys(abs_path)

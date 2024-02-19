@@ -381,11 +381,11 @@ if __name__ == '__main__':
     num_frames_to_save = float(os.getenv('SAVE_FRAMES'))
     
     # DEFINE PATHS
-    path_to_videos = current_dir + f'\\videos-{user}\\'
-    path_to_audios = current_dir + f'\\audios-{user}\\'
-    path_to_subtitles = current_dir + f'\\subtitles-{user}\\'
-    path_to_complete = current_dir + f'\\complete-{user}\\'
-    path_to_images = current_dir + f'\\images-{user}\\'
+    path_to_videos = current_dir + f'\\{user}\\videos\\'
+    path_to_audios = current_dir + f'\\{user}\\audios\\'
+    path_to_subtitles = current_dir + f'\\{user}\\subtitles\\'
+    path_to_complete = current_dir + f'\\{user}\\complete\\'
+    path_to_images = current_dir + f'\\{user}\\images\\'
 
     # CREATE DIRECTORIES
     if not os.path.exists(path_to_audios):
