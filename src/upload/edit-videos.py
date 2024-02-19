@@ -76,7 +76,7 @@ def get_saving_frames_durations(cap, saving_fps):
 def save_frames(video_file, SAVING_FRAMES_PER_SECOND, title_with_id):
     filename, _ = os.path.splitext(video_file)
     # define save directory
-    save_dir = filename.replace(f'videos-{user}', f'images-{user}')
+    save_dir = filename.replace(f'videos', f'images')
     # read the video file    
     cap = cv2.VideoCapture(video_file)
     # get the FPS of the video
@@ -130,11 +130,11 @@ def get_voiceover_texts(path_to_videos):
         SAVING_FRAMES_PER_SECOND = num_frames_to_save/video_duration
         
         save_frames(video_file=video_file, SAVING_FRAMES_PER_SECOND=SAVING_FRAMES_PER_SECOND, title_with_id=title_with_id)   
-          
+                    
         images = []
         for image in os.listdir(path_to_images + title_with_id + '\\'):
             images.append(path_to_images + title_with_id + '\\' + image)
-    
+        
         frame_by_frame = predict_caption(images)
                 
         voiceover_texts[title_with_id] = gpt.gpt_response(frame_by_frame)
@@ -400,8 +400,7 @@ if __name__ == '__main__':
     if not os.path.exists(path_to_images):
         os.mkdir(path_to_images)
     
-    voice_to_use, voiceover_texts = get_voiceover(voice_id, voice_stability, voice_similarity_boost)
     
-    print(voiceover_texts)
-            
+    voice_to_use, voiceover_texts = get_voiceover(voice_id, voice_stability, voice_similarity_boost)
+                
     edit_videos(voiceover_texts, voice_to_use)
