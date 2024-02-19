@@ -23,7 +23,6 @@ def predict_caption(image_paths):
             i_image = i_image.convert(mode="RGB")
         images.append(i_image)
         
-    print(images)
     pixel_values = feature_extractor(
         images=images, return_tensors="pt"
     ).pixel_values

@@ -11,10 +11,10 @@ VOICE_STABILITY = 0.5
 VOICE_SIMILARITY_BOOST = 0.5
 
 # SUBTITLE FONT 
-SUBTITLE_FONT = 'Bardy'
+SUBTITLE_FONT = 'GladlyAcceptRegular'
 
 # SUBTITLE FONT SIZE
-SUBTITLE_FONTSIZE = 50
+SUBTITLE_FONTSIZE = 35
 
 # SUBTITLE Y POSITION
 SUBTITLE_Y_POSITION = 0.7
@@ -23,8 +23,6 @@ SUBTITLE_Y_POSITION = 0.7
 SUBTITLE_OUTLINE = 20
 
 # CHATGPT PROMPT
-# CHATGPT_PROMPT = "You\'re tasked with crafting a single captivating caption/subtitle that succinctly summarizes a series of diverse video frames wittily and humorously in a tiktok style fashion. Each frame comes with its own unique description. Your goal is to create a compelling summary that encapsulates the essence of the entire video sequence. The caption/subtitle should be attention-grabbing and relevant to the overall content. Descriptions of the frames: Now, imagine you\'ve reached the end of the video, and you want to leave the audience with an engaging tiktok-like question. Your question should spark curiosity and encourage viewer interaction. What question would you ask to keep the audience thinking and participating beyond the video\'s conclusion? Before asking this question, put a | symbol in your response. Ensure the entire gpt response you give is on one line, and the separation between the initial description and the question is in the following format: [end of description|start of question]. There should only be one description and one question. Here is an example of a response you would give for a shark chasing a fish: \'This fish was in the wrong place at the wrong time... you won\'t believe how this ends|would you be able to swim away from a shark?\'. It must be witty like in the example, and you should not use any emojis. Do not ask a question in the initial description."
-
 CHATGPT_PROMPT = "Craft a witty and engaging teaser caption/subtitle that cleverly summarizes a sequence of diverse video frames in a TikTok-style fashion. Each frame comes with its own unique description. Your task is to create a captivating summary that encapsulates the essence of the entire video sequence. The caption/subtitle should be attention-grabbing and relevant to the overall content. After the sequence, pose an intriguing TikTok-like comment inducing question about the viewer to inspire comments on the video. Keep in mind this question will be placed at the end of the video. Use the | symbol to separate your response into the caption and the question. Your response should be concise, humorous, and thought-provoking. The final question should be an afterthought of the video. Descriptions of the frames: Here\'s an example: \'This fish was in the wrong place at the wrong time... you won\'t believe how this ends|Would you be able to swim away from a shark?\'. It must be witty like in the example, and you should not use any emojis. There should be zero colons (:) in your response. There should be no spaces on either side of the | symbol. It is very important that there is never 2 spaces in your response. THE FINAL QUESTION SHOULD NOT BE A QUESTION THAT IS ANSWERED IN THE VIDEO."
 
 # VOICEOVER TEXT

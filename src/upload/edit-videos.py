@@ -7,6 +7,7 @@ import elevenlabs
 from termcolor import colored
 import json
 import whisper_timestamped as whisper
+import re
 
 # self-made imports
 import gpt
@@ -115,34 +116,33 @@ def save_frames(video_file, SAVING_FRAMES_PER_SECOND, title_with_id):
         # increment the frame count
         count += 1
             
-def get_voiceover_texts(path_to_videos):
+def get_voiceover_text(path_to_videos, file):
     print("GENERATING TEXTS FOR VOICEOVERS")
-    voiceover_texts = {}
-    for file in os.listdir(path_to_videos):
-        title_with_id = file.split('.')[0]
-        if not os.path.exists(path_to_images + title_with_id):
-            os.mkdir(path_to_images + title_with_id) 
-        
-        video_file = path_to_videos + title_with_id + '.mp4'
-        
-        video_duration = get_video_duration(video_file)
-        
-        SAVING_FRAMES_PER_SECOND = num_frames_to_save/video_duration
-        
-        save_frames(video_file=video_file, SAVING_FRAMES_PER_SECOND=SAVING_FRAMES_PER_SECOND, title_with_id=title_with_id)   
-                    
-        images = []
-        for image in os.listdir(path_to_images + title_with_id + '\\'):
-            images.append(path_to_images + title_with_id + '\\' + image)
-        
-        frame_by_frame = predict_caption(images)
+    title_with_id = file.split('.')[0]
+    
+    if not os.path.exists(path_to_images + title_with_id):
+        os.mkdir(path_to_images + title_with_id) 
+    
+    video_file = path_to_videos + title_with_id + '.mp4'
+    
+    video_duration = get_video_duration(video_file)
+    
+    SAVING_FRAMES_PER_SECOND = num_frames_to_save/video_duration
+    
+    save_frames(video_file=video_file, SAVING_FRAMES_PER_SECOND=SAVING_FRAMES_PER_SECOND, title_with_id=title_with_id)   
                 
-        voiceover_texts[title_with_id] = gpt.gpt_response(frame_by_frame)
+    images = []
+    for image in os.listdir(path_to_images + title_with_id + '\\'):
+        images.append(path_to_images + title_with_id + '\\' + image)
+    
+    frame_by_frame = predict_caption(images)
+            
+    voiceover_text = gpt.gpt_response(frame_by_frame)
         
-    return voiceover_texts
+    return voiceover_text
                     
 # GET VOICEOVER
-def get_voiceover(voiceID, stability, similarity_boost) -> dict:
+def get_voiceover(voiceID, stability, similarity_boost, file) -> dict:
     print("GENERATING VOICEOVERS")
     voice_to_use = Voice(
         voice_id = voiceID,
@@ -154,9 +154,28 @@ def get_voiceover(voiceID, stability, similarity_boost) -> dict:
         )
     )
         
-    voiceover_texts = get_voiceover_texts(path_to_videos=path_to_videos)
+    voiceover_text = get_voiceover_text(path_to_videos=path_to_videos, file=file)
     
-    return voice_to_use, voiceover_texts
+    if ' | ' in voiceover_text:
+        voiceover_text = voiceover_text.replace(' | ', '|')
+    elif ' |' in voiceover_text:
+        voiceover_text = voiceover_text.replace(' |', '|')
+    elif '| ' in voiceover_text:
+        voiceover_text = voiceover_text.replace('| ', '|')
+    elif '|' in voiceover_text:
+        voiceover_text = voiceover_text
+    else:
+        print(colored('STRANGE | SCENARIO', 'red'))
+    
+    if '\"' in voiceover_text:
+        voiceover_text = voiceover_text.replace('\"', '')
+    elif "\'" in voiceover_text:
+        voiceover_text = voiceover_text.replace("\'", "")
+        
+    # if words are connected by '...' split words. (e.g. "hello...goobye -> hello... goodbye")
+    re.sub(r'\.\.\.(?![\|\s])', '... ', voiceover_text)
+    
+    return voice_to_use, voiceover_text
 
 # GET WORD BY WORD TIMESTAMPS
 def get_word_breakdown(mp3File) -> list:
@@ -174,11 +193,11 @@ def get_word_breakdown(mp3File) -> list:
 # ADD THE CAPTIONS TO THE FINAL CLIP
 def add_captions(video, title, audio_clip_end):   
     print("GENERATING CAPTIONS")
-    if '|' in voiceover_texts[title]: 
-        start_words = get_word_breakdown((path_to_audios + title + '-start.mp3'))
-        end_words = get_word_breakdown((path_to_audios + title + '-end.mp3'))
+    if '|' in voiceover_text: 
+        start_words = get_word_breakdown((path_to_audios + title + '\\start.mp3'))
+        end_words = get_word_breakdown((path_to_audios + title + '\\end.mp3'))
     else:
-        start_words = get_word_breakdown((path_to_audios + title + '.mp3'))
+        start_words = get_word_breakdown((path_to_audios + title + '\\full.mp3'))
         
     video_width, video_height = video.size
     video_duration = video.duration
@@ -187,9 +206,9 @@ def add_captions(video, title, audio_clip_end):
     
     all_clips.append(video)
 
-    if '|' in voiceover_texts[title]:
-        end_words_final = end_words[-1]['end']
-        for pIdx, phrase in enumerate(voiceover_texts[title].split('|')):
+    if '|' in voiceover_text:
+        # end_words_final = end_words[-1]['end']
+        for pIdx, phrase in enumerate(voiceover_text.split('|')):
             for idx, word in enumerate(phrase.split(' ')):
                 print('ADDING ' + phrase.split(' ')[idx] + ' TO SUBTITLES')
                 if pIdx == 0:
@@ -218,10 +237,10 @@ def add_captions(video, title, audio_clip_end):
                 all_clips.append(txt_moving_resized)
     else:
         for idx, word in enumerate(start_words):
-            print('ADDING ' + voiceover_texts[title].split(' ')[idx] + ' TO SUBTITLES')
+            print('ADDING ' + voiceover_text.split(' ')[idx] + ' TO SUBTITLES')
             
             duration = start_words[idx]['end'] - start_words[idx]['start']
-            current_text_clip = TextClip(voiceover_texts[title].split(' ')[idx], stroke_width=subtitle_outline, stroke_color='black', fontsize = subtitle_fontsize*10, color = 'white', bg_color='transparent', font=subtitle_font, method='caption').set_start(start_words[idx]['start']).set_end(start_words[idx]['end'])
+            current_text_clip = TextClip(voiceover_text.split(' ')[idx], stroke_width=subtitle_outline, stroke_color='black', fontsize = subtitle_fontsize*10, color = 'white', bg_color='transparent', font=subtitle_font, method='caption').set_start(start_words[idx]['start']).set_end(start_words[idx]['end'])
 
             # 3. Define the Resize (Scaling) Function
             def resize(t):
@@ -244,101 +263,92 @@ def add_captions(video, title, audio_clip_end):
     print('WRITING VIDEO FILE WITH CAPTIONS')
     video.write_videofile(path_to_complete + title + '.mp4', fps=60)
     print('DONE WRITING')
-    
-    raise 'test'
 
 # CREATE VIDEOS WITH VOICEOVER AND CAPTION
-def edit_videos(voiceover_texts, voice_to_use):
-    for file in os.listdir(path_to_videos):
-        # Get the desired video title
-        title_with_id = file.split('.')[0]
-        video_file = path_to_videos + title_with_id + '.mp4'
-        audio_file_full = path_to_audios + title_with_id + '.mp3'
-        audio_file_start = path_to_audios + title_with_id + '-start.mp3'
-        audio_file_end = path_to_audios + title_with_id + '-end.mp3'
+def edit_videos(voiceover_text, voice_to_use):
+    # Get the desired video title
+    title_with_id = file.split('.')[0]
+    video_file = path_to_videos + title_with_id + '.mp4'
+    audio_file_folder = path_to_audios + title_with_id
+    if not os.path.exists(audio_file_folder):
+        os.mkdir(audio_file_folder)
+    audio_file_full = path_to_audios + title_with_id + '\\full.mp3'
+    audio_file_start = path_to_audios + title_with_id + '\\start.mp3'
+    audio_file_end = path_to_audios + title_with_id + '\\end.mp3'
+    
+    print(colored('---------------', 'white'))
+    print(colored('', 'white'))
+    print(colored('EDITING VIDEO: ' + video_file.split('\\')[-1], 'red'))
+    print(colored('', 'white'))
+    
+    if '|' in voiceover_text:
+        tts_audio_start = generate(api_key=elevenlabs_api_key,
+                            text=voiceover_text.split('|')[0], 
+                            voice=voice_to_use,
+                            )
         
-        if ' | ' in voiceover_texts[title_with_id]:
-            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace(' | ', '|')
-        elif ' |' in voiceover_texts[title_with_id]:
-            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace(' |', '|')
-        elif '| ' in voiceover_texts[title_with_id]:
-            voiceover_texts[title_with_id] = voiceover_texts[title_with_id].replace('| ', '|')
-        elif '|' in voiceover_texts[title_with_id]:
-            voiceover_texts[title_with_id] = voiceover_texts[title_with_id]
-        else:
-            print(colored('STRANGE | SCENARIO', 'red'))
+        tts_audio_end = generate(api_key=elevenlabs_api_key,
+                            text=voiceover_text.split('|')[1], 
+                            voice=voice_to_use,
+                            )
         
-        print(colored('---------------', 'white'))
-        print(colored('', 'white'))
-        print(colored('EDITING VIDEO: ' + video_file.split('\\')[-1], 'red'))
-        print(colored('', 'white'))
+        save(tts_audio_start, audio_file_start)
+        save(tts_audio_end, audio_file_end)
         
-        if '|' in voiceover_texts[title_with_id]:
-            tts_audio_start = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_texts[title_with_id].split('|')[0], 
-                                voice=voice_to_use,
-                                )
-            
-            tts_audio_end = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_texts[title_with_id].split('|')[1], 
-                                voice=voice_to_use,
-                                )
-            
-            save(tts_audio_start, audio_file_start)
-            save(tts_audio_end, audio_file_end)
-            
-            tts_audio_clip_start = AudioFileClip(audio_file_start)
-            tts_audio_clip_end = AudioFileClip(audio_file_end)
-            
-            tts_audio_full = concatenate_audioclips([tts_audio_clip_start, tts_audio_clip_end])
-            tts_audio_full.write_audiofile(audio_file_full)
+        tts_audio_clip_start = AudioFileClip(audio_file_start)
+        tts_audio_clip_end = AudioFileClip(audio_file_end)
+        
+        tts_audio_full = concatenate_audioclips([tts_audio_clip_start, tts_audio_clip_end])
+        tts_audio_full.write_audiofile(audio_file_full)
 
-            words_end = get_word_breakdown(path_to_audios + title_with_id + '-end.mp3')
-                    
-            # Open the video and audio
-            video_clip = VideoFileClip(video_file)
-            video_duration = video_clip.duration
-            end_words_final = words_end[-1]['end']
-            audio_clip_end = AudioFileClip(audio_file_end)
-            audio_start_time = video_duration - audio_clip_end.duration - 2
-            
-            original_audio_clip = video_clip.audio
-            audio_clip_start = AudioFileClip(audio_file_start)
-            audio_clip_end = AudioFileClip(audio_file_end)
-            audio_clip_end = audio_clip_end.set_start(audio_start_time)
-            audio_clip = audio_clip_end
-            final_audio_clip = CompositeAudioClip([audio_clip_start, audio_clip_end, original_audio_clip])
-        else:
-            tts_audio = generate(api_key=elevenlabs_api_key,
-                                text=voiceover_texts[title_with_id].split('|')[0], 
-                                voice=voice_to_use,
-                                )
-            
-            save(tts_audio, audio_file_full)
-                    
-            # Open the video and audio
-            video_clip = VideoFileClip(video_file)
-            original_audio_clip = video_clip.audio
-            audio_clip = AudioFileClip(audio_file_full)
-            final_audio_clip = CompositeAudioClip([audio_clip, original_audio_clip])   
-
-        # Concatenate the video clip with the audio clip
-        final_clip = video_clip.set_audio(final_audio_clip) 
-
-        # Export the final video with audio
-        if os.path.exists(path_to_complete + title_with_id + ".mov"):
-            print(colored('.mov ALREADY EXISTS... REMOVING: ' + title_with_id, 'yellow'))
-            print(colored('', 'white'))
-            os.remove(path_to_complete + title_with_id + ".mov")
-                    
-        # Add captions
-        add_captions(final_clip, title_with_id, audio_clip)
+        # words_end = get_word_breakdown(path_to_audios + title_with_id + '-end.mp3')
+                
+        # Open the video and audio
+        video_clip = VideoFileClip(video_file)
+        video_duration = video_clip.duration
+        # end_words_final = words_end[-1]['end']
+        audio_clip_end = AudioFileClip(audio_file_end)
+        audio_start_time = video_duration - audio_clip_end.duration - 2
         
-        # Convert to .mov
-        mp4_to_mov(path_to_complete)
+        original_audio_clip = video_clip.audio
+        audio_clip_start = AudioFileClip(audio_file_start)
+        audio_clip_end = AudioFileClip(audio_file_end)
+        audio_clip_end = audio_clip_end.set_start(audio_start_time)
+        audio_clip = audio_clip_end
+        final_audio_clip = CompositeAudioClip([audio_clip_start, audio_clip_end, original_audio_clip])
+    else:
+        tts_audio = generate(api_key=elevenlabs_api_key,
+                            text=voiceover_text.split('|')[0], 
+                            voice=voice_to_use,
+                            )
         
-        print(colored('VIDEO SUCCESSFULLY EDITED AND SAVED: ' + video_file.split('\\')[-1], 'green'))
+        save(tts_audio, audio_file_full)
+                
+        # Open the video and audio
+        video_clip = VideoFileClip(video_file)
+        original_audio_clip = video_clip.audio
+        audio_clip = AudioFileClip(audio_file_full)
+        final_audio_clip = CompositeAudioClip([audio_clip, original_audio_clip])   
+
+    # Concatenate the video clip with the audio clip
+    final_clip = video_clip.set_audio(final_audio_clip) 
+
+    # Export the final video with audio
+    if os.path.exists(path_to_complete + title_with_id + ".mov"):
+        print(colored('.mov ALREADY EXISTS... REMOVING: ' + title_with_id, 'yellow'))
         print(colored('', 'white'))
+        os.remove(path_to_complete + title_with_id + ".mov")
+                
+    # Add captions
+    add_captions(final_clip, title_with_id, audio_clip)
+    
+    # Convert to .mov
+    mp4_to_mov(path_to_complete)
+    
+    print(colored('VIDEO SUCCESSFULLY EDITED AND SAVED: ' + video_file.split('\\')[-1], 'green'))
+    print(colored('', 'white'))
+    
+    raise 'test'
 
 def construct_dict_of_voices():
     voices = elevenlabs.voices()
@@ -383,7 +393,6 @@ if __name__ == '__main__':
     # DEFINE PATHS
     path_to_videos = current_dir + f'\\{user}\\videos\\'
     path_to_audios = current_dir + f'\\{user}\\audios\\'
-    path_to_subtitles = current_dir + f'\\{user}\\subtitles\\'
     path_to_complete = current_dir + f'\\{user}\\complete\\'
     path_to_images = current_dir + f'\\{user}\\images\\'
 
@@ -393,14 +402,14 @@ if __name__ == '__main__':
         
     if not os.path.exists(path_to_complete):
         os.mkdir(path_to_complete)
-    
-    if not os.path.exists(path_to_subtitles):
-        os.mkdir(path_to_subtitles)
         
     if not os.path.exists(path_to_images):
         os.mkdir(path_to_images)
     
-    
-    voice_to_use, voiceover_texts = get_voiceover(voice_id, voice_stability, voice_similarity_boost)
-                
-    edit_videos(voiceover_texts, voice_to_use)
+    for file in os.listdir(path_to_videos):
+        if not os.path.exists(path_to_complete + file.replace('.mp4','.mov')):
+            voice_to_use, voiceover_text = get_voiceover(voice_id, voice_stability, voice_similarity_boost, file=file)
+                                        
+            edit_videos(voiceover_text, voice_to_use)
+        else:
+            print(colored(f'{file} ALREADY EDITED... SKIPPING!', 'green'))
