@@ -8,6 +8,7 @@ from termcolor import colored
 import json
 import whisper_timestamped as whisper
 import re
+from createElevenLabsAccount import generate_new_elevenlabs_api_key
 
 # self-made imports
 import gpt
@@ -19,29 +20,25 @@ import cv2
 import numpy as np
 import os
 
-# CREATE PROTONVPN EMAIL AND SIGN UP FOR ELEVENLABS, GRAB API KEY, AND INSERT INTO .api FILE
-
-
 # CONVERT .mov TO .mov
-def mp4_to_mov(movie_path) -> None:
-    for fn in os.listdir(movie_path):
-        print("Converting " + movie_path + fn + " to .mov file")
-        print(fn[:-4])
-        if os.path.isfile(movie_path + fn):
-            if fn.endswith(".mp4"):
-                cmd = ["ffmpeg",
-                    "-i", movie_path + fn,
-                    "-n",
-                    "-acodec", "copy",
-                    "-vcodec", "copy",
-                    "-f", "mov", movie_path + fn[:-4] + ".mov"]
-                print("mp4 file found: "  + fn)
-                p = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
-                if p.returncode == 0:
-                    os.remove(movie_path + fn)
-                    print("Converted " + fn)
-                else:
-                    print("Skipped   " + fn)
+def mp4_to_mov(movie_path, fn) -> None:
+    print("Converting " + movie_path + fn + " to .mov file")
+    print(fn[:-4])
+    if os.path.isfile(movie_path + fn):
+        if fn.endswith(".mp4"):
+            cmd = ["ffmpeg",
+                "-i", movie_path + fn,
+                "-n",
+                "-acodec", "copy",
+                "-vcodec", "copy",
+                "-f", "mov", movie_path + fn[:-4] + ".mov"]
+            print("mp4 file found: "  + fn)
+            p = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT, shell=False)
+            if p.returncode == 0:
+                os.remove(movie_path + fn)
+                print("Converted " + fn)
+            else:
+                print("Skipped   " + fn)
 
 def get_video_duration(filename):
     result = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
@@ -116,7 +113,7 @@ def save_frames(video_file, SAVING_FRAMES_PER_SECOND, title_with_id):
         # increment the frame count
         count += 1
             
-def get_voiceover_text(path_to_videos, file):
+def get_voiceover_text(path_to_videos, file) -> str:
     print("GENERATING TEXTS FOR VOICEOVERS")
     title_with_id = file.split('.')[0]
     
@@ -136,8 +133,10 @@ def get_voiceover_text(path_to_videos, file):
         images.append(path_to_images + title_with_id + '\\' + image)
     
     frame_by_frame = predict_caption(images)
-            
-    voiceover_text = gpt.gpt_response(frame_by_frame)
+
+    voiceover_text = ''
+    while '|' not in voiceover_text: 
+        voiceover_text = gpt.gpt_response(frame_by_frame)
         
     return voiceover_text
                     
@@ -153,7 +152,7 @@ def get_voiceover(voiceID, stability, similarity_boost, file) -> dict:
             use_speaker_boost=True
         )
     )
-        
+     
     voiceover_text = get_voiceover_text(path_to_videos=path_to_videos, file=file)
     
     if ' | ' in voiceover_text:
@@ -165,7 +164,7 @@ def get_voiceover(voiceID, stability, similarity_boost, file) -> dict:
     elif '|' in voiceover_text:
         voiceover_text = voiceover_text
     else:
-        print(colored('STRANGE | SCENARIO', 'red'))
+        print(colored('STRANGE | SCENARIO: '  + voiceover_text, 'red'))
     
     if '\"' in voiceover_text:
         voiceover_text = voiceover_text.replace('\"', '')
@@ -175,11 +174,14 @@ def get_voiceover(voiceID, stability, similarity_boost, file) -> dict:
     # if words are connected by '...' split words. (e.g. "hello...goobye -> hello... goodbye")
     re.sub(r'\.\.\.(?![\|\s])', '... ', voiceover_text)
     
+    if not voiceover_split:
+        voiceover_text = voiceover_text.replace('|', ' ')
+    
     return voice_to_use, voiceover_text
 
 # GET WORD BY WORD TIMESTAMPS
 def get_word_breakdown(mp3File) -> list:
-    model = whisper.load_model('base')
+    model = whisper.load_model('medium.en')
     audio = whisper.load_audio(mp3File)
     result = whisper.transcribe(model, audio, language='en')
     output = json.loads(json.dumps(result, indent = 2, ensure_ascii = False))
@@ -192,12 +194,17 @@ def get_word_breakdown(mp3File) -> list:
 
 # ADD THE CAPTIONS TO THE FINAL CLIP
 def add_captions(video, title, audio_clip_end):   
-    print("GENERATING CAPTIONS")
+    print("GENERATING VIDEO CAPTIONS")
     if '|' in voiceover_text: 
         start_words = get_word_breakdown((path_to_audios + title + '\\start.mp3'))
         end_words = get_word_breakdown((path_to_audios + title + '\\end.mp3'))
     else:
         start_words = get_word_breakdown((path_to_audios + title + '\\full.mp3'))
+    
+    start_words = [start_word for start_word in start_words if start_word['text'] != '[*]']
+        
+    if len(start_words) != len(voiceover_text.split(' ')):
+        raise print('ERROR: LENGTH OF LIST "start_words" NOT EQUAL TO LENGTH OF LIST "voiceover_text.split(\' \')"... CONSIDER USING A HIGHER FIDELITY VOICE RECOGNITION MODEL... \n\nstart_words: ', [start_word['text'] for start_word in start_words], '\n\nvoiceover_text.split(' '): ', voiceover_text.split(' '))
         
     video_width, video_height = video.size
     video_duration = video.duration
@@ -205,6 +212,8 @@ def add_captions(video, title, audio_clip_end):
     all_clips = []
     
     all_clips.append(video)
+
+    print('ADDING START_WORDS TO CAPTIONS: ', [start_word['text'] for start_word in start_words])
 
     if '|' in voiceover_text:
         # end_words_final = end_words[-1]['end']
@@ -265,7 +274,7 @@ def add_captions(video, title, audio_clip_end):
     print('DONE WRITING')
 
 # CREATE VIDEOS WITH VOICEOVER AND CAPTION
-def edit_videos(voiceover_text, voice_to_use):
+def edit_videos(voiceover_text, voice_to_use, file):
     # Get the desired video title
     title_with_id = file.split('.')[0]
     video_file = path_to_videos + title_with_id + '.mp4'
@@ -280,18 +289,28 @@ def edit_videos(voiceover_text, voice_to_use):
     print(colored('', 'white'))
     print(colored('EDITING VIDEO: ' + video_file.split('\\')[-1], 'red'))
     print(colored('', 'white'))
-    
     if '|' in voiceover_text:
-        tts_audio_start = generate(api_key=elevenlabs_api_key,
-                            text=voiceover_text.split('|')[0], 
-                            voice=voice_to_use,
-                            )
-        
-        tts_audio_end = generate(api_key=elevenlabs_api_key,
-                            text=voiceover_text.split('|')[1], 
-                            voice=voice_to_use,
-                            )
-        
+        while True:
+            try:
+                print('GENERATING AI VOICE FROM TEXT')
+                elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                tts_audio_start = generate(api_key=elevenlabs_api_key,
+                                    text=voiceover_text.split('|')[0], 
+                                    voice=voice_to_use,
+                                    )
+                
+                tts_audio_end = generate(api_key=elevenlabs_api_key,
+                                    text=voiceover_text.split('|')[1], 
+                                    voice=voice_to_use,
+                                    )
+                break
+            except Exception as err:
+                print('API KEY EXPIRED')
+                if 'This request exceeds your quota.' in str(err):
+                    generate_new_elevenlabs_api_key()
+                else:
+                    print(err)
+                
         save(tts_audio_start, audio_file_start)
         save(tts_audio_end, audio_file_end)
         
@@ -317,23 +336,35 @@ def edit_videos(voiceover_text, voice_to_use):
         audio_clip = audio_clip_end
         final_audio_clip = CompositeAudioClip([audio_clip_start, audio_clip_end, original_audio_clip])
     else:
-        tts_audio = generate(api_key=elevenlabs_api_key,
-                            text=voiceover_text.split('|')[0], 
-                            voice=voice_to_use,
-                            )
-        
+        while True:
+            try:
+                print('GENERATING AI VOICE FROM TEXT')
+                elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                tts_audio = generate(api_key=elevenlabs_api_key,
+                                    text=voiceover_text.split('|')[0], 
+                                    voice=voice_to_use,
+                                    )  
+                break
+            except Exception as err:
+                print('API KEY EXPIRED')
+                if 'This request exceeds your quota.' in str(err):
+                    generate_new_elevenlabs_api_key()
+                else:
+                    print(err)
+                    
         save(tts_audio, audio_file_full)
-                
+                    
         # Open the video and audio
         video_clip = VideoFileClip(video_file)
         original_audio_clip = video_clip.audio
         audio_clip = AudioFileClip(audio_file_full)
-        final_audio_clip = CompositeAudioClip([audio_clip, original_audio_clip])   
-
+        final_audio_clip = CompositeAudioClip([audio_clip, original_audio_clip]) 
     # Concatenate the video clip with the audio clip
+    print('SETTING AUDIO FOR FINAL VIDEO')
     final_clip = video_clip.set_audio(final_audio_clip) 
 
     # Export the final video with audio
+    print('EXPORTING FINAL VIDEO')
     if os.path.exists(path_to_complete + title_with_id + ".mov"):
         print(colored('.mov ALREADY EXISTS... REMOVING: ' + title_with_id, 'yellow'))
         print(colored('', 'white'))
@@ -343,7 +374,7 @@ def edit_videos(voiceover_text, voice_to_use):
     add_captions(final_clip, title_with_id, audio_clip)
     
     # Convert to .mov
-    mp4_to_mov(path_to_complete)
+    mp4_to_mov(path_to_complete, file)
     
     print(colored('VIDEO SUCCESSFULLY EDITED AND SAVED: ' + video_file.split('\\')[-1], 'green'))
     print(colored('', 'white'))
@@ -377,7 +408,6 @@ if __name__ == '__main__':
         exit()
     
     load_dotenv(current_dir + '\\.api')
-    elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
     load_dotenv(current_dir + '\\inputs.txt')
     user = os.getenv('USER')
     voice_name = os.getenv('VOICE_NAME')
@@ -388,7 +418,9 @@ if __name__ == '__main__':
     subtitle_outline = float(os.getenv('SUBTITLE_OUTLINE'))
     subtitle_fontsize = float(os.getenv('SUBTITLE_FONTSIZE'))
     subtitle_y_position = float(os.getenv('SUBTITLE_Y_POSITION'))
+    voiceover_split = bool(int(os.getenv('VOICEOVER_SPLIT')))
     num_frames_to_save = float(os.getenv('SAVE_FRAMES'))
+    verification_email = os.getenv('VERIFICATION_EMAIL')
     
     # DEFINE PATHS
     path_to_videos = current_dir + f'\\{user}\\videos\\'
@@ -409,7 +441,11 @@ if __name__ == '__main__':
     for file in os.listdir(path_to_videos):
         if not os.path.exists(path_to_complete + file.replace('.mp4','.mov')):
             voice_to_use, voiceover_text = get_voiceover(voice_id, voice_stability, voice_similarity_boost, file=file)
+                        
+            voiceover_text = 'These animals have mastered the art of relaxation... but can you guess where they call home? Are you more of a beach bum or a forest dweller?'
+                        
+            print('GENERATED VOICEOVER TEXT: ' + voiceover_text)
                                         
-            edit_videos(voiceover_text, voice_to_use)
+            edit_videos(voiceover_text, voice_to_use, file)
         else:
             print(colored(f'{file} ALREADY EDITED... SKIPPING!', 'green'))

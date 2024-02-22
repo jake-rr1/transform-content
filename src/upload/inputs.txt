@@ -2,7 +2,7 @@
 USER = qinhan111
 
 # ELEVENLABS VOICE ID TO USE
-VOICE_NAME = 'Rachel'
+VOICE_NAME = 'Charlotte'
 
 # ELEVENLABS VOICE STABILITY SETTING
 VOICE_STABILITY = 0.5
@@ -27,6 +27,9 @@ CHATGPT_PROMPT = "Craft a witty and engaging teaser caption/subtitle that clever
 
 # VOICEOVER TEXT
 VOICEOVER_TEXT = "Alligators are vicious when they are threatened. Watch this alligator go through this swamp and kill it\'s prey!|Do you think you could take an alligator? Or would it ruthlessly eat you?"
+
+# BEGINNING AND END VOICEOVER TEXT? OR JUST BEGINNING? (0 = JUST BEGINNING, 1 = BEGINNING AND END)
+VOICEOVER_SPLIT = 0
 
 # AMOUNT OF FRAMES TO SAVE PER VIDEO
 SAVE_FRAMES = 5
