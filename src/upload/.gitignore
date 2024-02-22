@@ -4,4 +4,4 @@ videos/roblox.mp4
 /.env
 /.api
 /.email_credentials
-/credentials.json
+/.elevenlabs_credentials
