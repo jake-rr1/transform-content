@@ -9,6 +9,7 @@ import json
 import whisper_timestamped as whisper
 import re
 from createElevenLabsAccount import generate_new_elevenlabs_api_key
+import time
 
 # self-made imports
 import gpt
@@ -289,11 +290,20 @@ def edit_videos(voiceover_text, voice_to_use, file):
     print(colored('', 'white'))
     print(colored('EDITING VIDEO: ' + video_file.split('\\')[-1], 'red'))
     print(colored('', 'white'))
+    
+    iter = 0
     if '|' in voiceover_text:
         while True:
             try:
                 print('GENERATING AI VOICE FROM TEXT')
-                elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                if iter > 0:
+                    old_elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                    while old_elevenlabs_api_key == elevenlabs_api_key:
+                        load_dotenv(current_dir + '\\.api')
+                        elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                else:
+                    load_dotenv(current_dir + '\\.api')
+                    elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
                 tts_audio_start = generate(api_key=elevenlabs_api_key,
                                     text=voiceover_text.split('|')[0], 
                                     voice=voice_to_use,
@@ -305,8 +315,9 @@ def edit_videos(voiceover_text, voice_to_use, file):
                                     )
                 break
             except Exception as err:
-                print('API KEY EXPIRED')
+                iter += 1
                 if 'This request exceeds your quota.' in str(err):
+                    print('API KEY EXPIRED')
                     generate_new_elevenlabs_api_key()
                 else:
                     print(err)
@@ -339,15 +350,23 @@ def edit_videos(voiceover_text, voice_to_use, file):
         while True:
             try:
                 print('GENERATING AI VOICE FROM TEXT')
-                elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                if iter > 0:
+                    old_elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                    while old_elevenlabs_api_key == elevenlabs_api_key:
+                        load_dotenv(current_dir + '\\.api')
+                        elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
+                else:
+                    load_dotenv(current_dir + '\\.api')
+                    elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
                 tts_audio = generate(api_key=elevenlabs_api_key,
                                     text=voiceover_text.split('|')[0], 
                                     voice=voice_to_use,
                                     )  
                 break
             except Exception as err:
-                print('API KEY EXPIRED')
+                iter += 1
                 if 'This request exceeds your quota.' in str(err):
+                    print('API KEY EXPIRED')
                     generate_new_elevenlabs_api_key()
                 else:
                     print(err)
@@ -407,8 +426,9 @@ if __name__ == '__main__':
         print(colored("ERROR: No .api file found. Creating .api file... Please go into the .api file and fill out the information.", 'red'))
         exit()
     
-    load_dotenv(current_dir + '\\.api')
     load_dotenv(current_dir + '\\inputs.txt')
+    load_dotenv(current_dir + '\\.api')
+    elevenlabs_api_key = os.getenv('ELEVENLABS_API_KEY')
     user = os.getenv('USER')
     voice_name = os.getenv('VOICE_NAME')
     voice_id = voices_dict[voice_name]

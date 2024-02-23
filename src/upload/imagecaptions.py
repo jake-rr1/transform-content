@@ -2,6 +2,8 @@ import torch, os
 from transformers import VisionEncoderDecoderModel, ViTImageProcessor, AutoTokenizer
 from PIL import Image
 
+# describe images based on given amount of images
+
 current_dir = os.path.dirname(os.path.realpath(__file__))
 
 model = VisionEncoderDecoderModel.from_pretrained('nlpconnect/vit-gpt2-image-captioning')
